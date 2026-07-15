@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { X, Upload } from 'lucide-react';
 import { Category } from '../types';
 import { supabase } from '../lib/supabase';
@@ -33,7 +33,7 @@ export default function CategoryForm({ existing, sortOrder, onClose, onSaved }: 
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !arabicName.trim() || !image) {
       setError('برجاء ملء كل الحقول واختيار صورة.');

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { X, Upload, Plus, Trash2 } from 'lucide-react';
 import { Product, Category } from '../types';
 import { supabase } from '../lib/supabase';
@@ -69,7 +69,7 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
     setColors(prev => prev.map((c, i) => (i === idx ? { ...c, [field]: value } : c)));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
 
