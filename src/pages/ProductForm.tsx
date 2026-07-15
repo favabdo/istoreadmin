@@ -161,14 +161,17 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
           {/* Main image */}
           <div>
             <label className="block text-xs font-bold text-slate-600 mb-1">الصورة الرئيسية</label>
-            <div className="flex items-center gap-3">
-              {mainImage && <img src={mainImage} className="w-16 h-16 rounded-xl object-cover border" />}
-              <label className="flex items-center gap-2 border border-dashed border-slate-300 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 cursor-pointer hover:bg-slate-50">
-                <Upload className="w-4 h-4" />
-                {uploading ? 'جاري الرفع...' : 'رفع صورة'}
-                <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files && handleMainImageUpload(e.target.files[0])} />
-              </label>
-            </div>
+            <p className="text-[11px] text-slate-400 font-bold mb-2">هذه المعاينة تُظهر شكل الصورة بالظبط زي ما هتظهر في كارت المنتج بالمتجر (تملأ كامل المساحة).</p>
+            {mainImage && (
+              <div className="w-full max-w-[220px] h-56 rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 mb-3">
+                <img src={mainImage} className="w-full h-full object-cover" />
+              </div>
+            )}
+            <label className="flex items-center gap-2 border border-dashed border-slate-300 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 cursor-pointer hover:bg-slate-50 w-fit">
+              <Upload className="w-4 h-4" />
+              {uploading ? 'جاري الرفع...' : mainImage ? 'تغيير الصورة' : 'رفع صورة'}
+              <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files && handleMainImageUpload(e.target.files[0])} />
+            </label>
           </div>
 
           {/* Extra images */}
