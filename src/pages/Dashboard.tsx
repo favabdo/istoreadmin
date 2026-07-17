@@ -95,7 +95,9 @@ export default function Dashboard() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {products.map(p => (
                 <div key={p.id} className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col">
-                  <img src={p.image} className="w-full h-36 object-cover rounded-xl mb-3 bg-slate-100" />
+                  <div className="w-full h-36 rounded-xl mb-3 bg-slate-100 flex items-center justify-center overflow-hidden">
+                    <img src={p.image} className="w-full h-full object-contain" />
+                  </div>
                   <p className="font-black text-slate-900 text-sm">{p.arabicName}</p>
                   <p className="text-xs text-slate-400 font-bold mb-2">{p.name}</p>
                   <p className="text-[#c09d53] font-black mb-3">{p.price.toLocaleString()} ج.م</p>
