@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react';
-import { Lock } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
+import tecstoreLogo from '../tecstore-logo.png';
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -22,10 +22,10 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-[#f0f4f9] px-4" dir="rtl">
       <div className="w-full max-w-md bg-white rounded-3xl p-8 border border-slate-200 shadow-xl">
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-16 h-16 bg-[#c09d53]/10 text-[#c09d53] rounded-full flex items-center justify-center mb-4">
-            <Lock className="w-8 h-8" />
+          <div className="w-16 h-16 bg-[#c09d53]/10 rounded-full flex items-center justify-center mb-4 p-2.5">
+            <img src={tecstoreLogo} alt="TecStore Logo" className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900">لوحة تحكم iStore</h1>
+          <h1 className="text-2xl font-black text-slate-900">لوحة تحكم TecStore</h1>
           <p className="text-slate-500 font-bold text-xs mt-1">سجّل الدخول لإدارة المنتجات والأقسام</p>
         </div>
 
