@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { X, Upload } from 'lucide-react';
 import { Category } from '../types';
 import { supabase } from '../lib/supabase';
@@ -21,6 +21,12 @@ export default function CategoryForm({ existing, sortOrder, onClose, onSaved }: 
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prevOverflow; };
+  }, []);
 
   const handleUpload = async (file: File) => {
     setUploading(true);
