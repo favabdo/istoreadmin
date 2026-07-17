@@ -82,7 +82,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 pb-24">
         {loading ? (
           <p className="text-center text-slate-400 font-bold py-20">جاري التحميل...</p>
         ) : tab === 'products' ? (
@@ -157,26 +157,29 @@ export default function Dashboard() {
       {/* =========================================================================================
           DEVELOPER CREDIT + CONTACT (always at the very bottom of the page)
           ========================================================================================= */}
-      <div className="w-full mt-4 mb-8 flex flex-col items-center gap-3 text-center" dir="rtl">
-        <p className="text-slate-500 text-xs sm:text-sm font-semibold">
+      <div
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-md border-t border-slate-200 flex items-center justify-center gap-4 py-2.5 px-4"
+        dir="rtl"
+      >
+        <p className="text-slate-500 text-[11px] sm:text-xs font-semibold">
           Website by <span className="font-black text-slate-700">Abdullah Elsawy</span>
         </p>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3">
           <a
             href="https://wa.me/201061163091"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex flex-col items-center gap-1.5 group"
+            className="flex items-center justify-center group"
           >
-            <span className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300 p-1.5 border border-slate-100">
+            <span className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300 p-1 border border-slate-100">
               <img src={whatsappLogo} alt="WhatsApp" className="w-full h-full object-contain" />
             </span>
           </a>
           <a
             href="mailto:abdallah666mo@gmail.com"
-            className="flex flex-col items-center gap-1.5 group"
+            className="flex items-center justify-center group"
           >
-            <span className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300 p-1.5 border border-slate-100">
+            <span className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300 p-1 border border-slate-100">
               <img src={gmailLogo} alt="Gmail" className="w-full h-full object-contain" />
             </span>
           </a>
