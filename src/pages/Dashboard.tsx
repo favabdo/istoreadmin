@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Pencil, Trash2, LogOut, Package, LayoutGrid, ExternalLink, Menu, X, Warehouse, ChevronDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, LogOut, Package, LayoutGrid, ExternalLink, Menu, X, Warehouse } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { mapProductRow, mapCategoryRow } from '../lib/mappers';
 import { Product, Category } from '../types';
@@ -22,12 +22,11 @@ export default function Dashboard() {
   const [editingProduct, setEditingProduct] = useState<Product | null | undefined>(undefined);
   const [editingCategory, setEditingCategory] = useState<Category | null | undefined>(undefined);
 
-  // Sidebar (side nav) state — the hamburger button opens/closes it, and
-  // "إدارة المخزون" (Inventory Management) is the first group and starts expanded
-  // since it's the only module built so far (Categories + Products). Future
-  // modules (invoices, sales, reports) get added here as sibling groups later.
+  // Sidebar (side nav) state — the hamburger button opens/closes it. It only
+  // holds top-level module links (currently just "إدارة المخزون"); the actual
+  // الأقسام/المنتجات switcher lives in the page body itself. Future modules
+  // (invoices, sales, reports) get added as sibling nav items later.
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [inventoryOpen, setInventoryOpen] = useState(true);
 
   const selectTab = (t: 'products' | 'categories') => {
     setTab(t);
@@ -65,9 +64,9 @@ export default function Dashboard() {
       {/* =========================================================================================
           SIDEBAR (side nav) - opened via the hamburger button. On mobile it slides in as an
           overlay drawer; on large screens it's always visible as a static column on the side.
-          First group is "إدارة المخزون" (Inventory Management) which currently holds the two
-          existing modules (الأقسام + المنتجات). Future modules (فواتير / مبيعات / تقارير) get
-          added here as sibling groups once that system is built.
+          It only holds top-level module links - "إدارة المخزون" for now. The actual
+          الأقسام/المنتجات switcher lives inside the page body (under the header), not here.
+          Future modules (فواتير / مبيعات / تقارير) get added here as sibling nav items later.
           ========================================================================================= */}
       {sidebarOpen && (
         <div
@@ -93,33 +92,19 @@ export default function Dashboard() {
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5">
-          {/* Group: إدارة المخزون */}
+          {/* Group: إدارة المخزون - the actual الأقسام/المنتجات switcher now lives inside
+              the page body itself (as tabs under the header), not here. This nav item just
+              represents/selects the module. */}
           <button
-            onClick={() => setInventoryOpen(o => !o)}
-            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm font-black text-slate-700 hover:bg-slate-50"
+            onClick={() => setSidebarOpen(false)}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-black bg-[#c09d53]/10 text-[#c09d53]"
           >
-            <span className="flex items-center gap-2">
-              <Warehouse className="w-4 h-4 text-[#c09d53]" />
-              إدارة المخزون
-            </span>
-            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${inventoryOpen ? 'rotate-180' : ''}`} />
+            <Warehouse className="w-4 h-4" />
+            إدارة المخزون
           </button>
 
-          {inventoryOpen && (
-            <div className="pr-4 space-y-1">
-              <button onClick={() => selectTab('categories')}
-                className={`w-full flex items-center gap-2 text-sm font-bold px-3 py-2 rounded-xl ${tab === 'categories' ? 'bg-[#c09d53] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
-                <LayoutGrid className="w-4 h-4" /> الأقسام ({categories.length})
-              </button>
-              <button onClick={() => selectTab('products')}
-                className={`w-full flex items-center gap-2 text-sm font-bold px-3 py-2 rounded-xl ${tab === 'products' ? 'bg-[#c09d53] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
-                <Package className="w-4 h-4" /> المنتجات ({products.length})
-              </button>
-            </div>
-          )}
-
           {/* Future groups (الفواتير، المبيعات، التقارير) get added here as new sibling
-              buttons/groups once that part of the system is built. */}
+              buttons once that part of the system is built. */}
         </nav>
 
         <div className="px-3 py-4 border-t border-slate-200 space-y-2">
@@ -154,6 +139,17 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 pb-24">
+        <div className="flex gap-2 mb-6">
+          <button onClick={() => selectTab('products')}
+            className={`flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full ${tab === 'products' ? 'bg-[#c09d53] text-white' : 'bg-slate-100 text-slate-600'}`}>
+            <Package className="w-4 h-4" /> المنتجات ({products.length})
+          </button>
+          <button onClick={() => selectTab('categories')}
+            className={`flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full ${tab === 'categories' ? 'bg-[#c09d53] text-white' : 'bg-slate-100 text-slate-600'}`}>
+            <LayoutGrid className="w-4 h-4" /> الأقسام ({categories.length})
+          </button>
+        </div>
+
         {loading ? (
           <p className="text-center text-slate-400 font-bold py-20">جاري التحميل...</p>
         ) : tab === 'products' ? (
