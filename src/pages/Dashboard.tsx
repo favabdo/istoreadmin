@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Pencil, Trash2, LogOut, Package, LayoutGrid, ExternalLink, Menu, X, Warehouse } from 'lucide-react';
+import { Plus, Pencil, Trash2, LogOut, Package, LayoutGrid, ExternalLink, Menu, X, Warehouse, UserRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { mapProductRow, mapCategoryRow } from '../lib/mappers';
 import { Product, Category } from '../types';
 import { useAuth } from '../lib/AuthContext';
 import ProductForm from './ProductForm';
 import CategoryForm from './CategoryForm';
+import Profile from './Profile';
 import tecstoreLogo from '../tecstore-logo.png';
 import whatsappLogo from '../whatsapp-logo.png';
 import gmailLogo from '../gmail-logo.png';
@@ -23,10 +24,17 @@ export default function Dashboard() {
   const [editingCategory, setEditingCategory] = useState<Category | null | undefined>(undefined);
 
   // Sidebar (side nav) state — the hamburger button opens/closes it. It only
-  // holds top-level module links (currently just "إدارة المخزون"); the actual
-  // الأقسام/المنتجات switcher lives in the page body itself. Future modules
+  // holds top-level module links (currently "إدارة المخزون" + الملف الشخصي); the
+  // actual الأقسام/المنتجات switcher lives in the page body itself. Future modules
   // (invoices, sales, reports) get added as sibling nav items later.
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [view, setView] = useState<'inventory' | 'profile'>('inventory');
+
+  // Delete requires typing the account password first, for both products and categories.
+  const [pendingDelete, setPendingDelete] = useState<{ type: 'product' | 'category'; id: string } | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmError, setConfirmError] = useState('');
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   const selectTab = (t: 'products' | 'categories') => {
     setTab(t);
@@ -46,15 +54,50 @@ export default function Dashboard() {
 
   useEffect(() => { load(); }, [load]);
 
-  const deleteProduct = async (id: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
-    await supabase.from('products').delete().eq('id', id);
-    load();
+  const requestDeleteProduct = (id: string) => {
+    setPendingDelete({ type: 'product', id });
+    setConfirmPassword('');
+    setConfirmError('');
   };
 
-  const deleteCategory = async (id: string) => {
-    if (!confirm('حذف القسم لن يحذف المنتجات المرتبطة به. هل تريد المتابعة؟')) return;
-    await supabase.from('categories').delete().eq('id', id);
+  const requestDeleteCategory = (id: string) => {
+    setPendingDelete({ type: 'category', id });
+    setConfirmPassword('');
+    setConfirmError('');
+  };
+
+  const cancelDelete = () => {
+    setPendingDelete(null);
+    setConfirmPassword('');
+    setConfirmError('');
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete || !session?.user.email || !confirmPassword) return;
+    setConfirmLoading(true);
+    setConfirmError('');
+
+    // Re-authenticate with the typed password to verify it's really the account owner.
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: session.user.email,
+      password: confirmPassword,
+    });
+
+    if (authError) {
+      setConfirmError('كلمة المرور غير صحيحة.');
+      setConfirmLoading(false);
+      return;
+    }
+
+    if (pendingDelete.type === 'product') {
+      await supabase.from('products').delete().eq('id', pendingDelete.id);
+    } else {
+      await supabase.from('categories').delete().eq('id', pendingDelete.id);
+    }
+
+    setConfirmLoading(false);
+    setPendingDelete(null);
+    setConfirmPassword('');
     load();
   };
 
@@ -96,8 +139,8 @@ export default function Dashboard() {
               the page body itself (as tabs under the header), not here. This nav item just
               represents/selects the module. */}
           <button
-            onClick={() => setSidebarOpen(false)}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-black bg-[#c09d53]/10 text-[#c09d53]"
+            onClick={() => { setView('inventory'); setSidebarOpen(false); }}
+            className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-black ${view === 'inventory' ? 'bg-[#c09d53]/10 text-[#c09d53]' : 'text-slate-700 hover:bg-slate-50'}`}
           >
             <Warehouse className="w-4 h-4" />
             إدارة المخزون
@@ -108,6 +151,24 @@ export default function Dashboard() {
         </nav>
 
         <div className="px-3 py-4 border-t border-slate-200 space-y-2">
+          {/* Profile entry (avatar + email) - opens the account/profile page */}
+          <button
+            onClick={() => { setView('profile'); setSidebarOpen(false); }}
+            className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-right ${view === 'profile' ? 'bg-[#c09d53]/10' : 'hover:bg-slate-50'}`}
+          >
+            <span className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden flex items-center justify-center flex-shrink-0 border border-slate-200">
+              {session?.user.user_metadata?.avatar_url ? (
+                <img src={session.user.user_metadata.avatar_url} className="w-full h-full object-cover" alt="" />
+              ) : (
+                <UserRound className="w-4 h-4 text-slate-400" />
+              )}
+            </span>
+            <span className="flex-1 min-w-0 text-right">
+              <span className="block text-xs font-black text-slate-800">الملف الشخصي</span>
+              <span className="block text-[11px] text-slate-400 font-bold truncate">{session?.user.email}</span>
+            </span>
+          </button>
+
           {STOREFRONT_URL && (
             <a href={STOREFRONT_URL} target="_blank" rel="noreferrer"
               className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-[#c09d53] px-3 py-2 rounded-xl hover:bg-slate-50">
@@ -131,14 +192,17 @@ export default function Dashboard() {
           </button>
           <div>
             <h1 className="font-black text-lg text-slate-900">
-              {tab === 'products' ? 'المنتجات' : 'الأقسام'}
+              {view === 'profile' ? 'الملف الشخصي' : (tab === 'products' ? 'المنتجات' : 'الأقسام')}
             </h1>
-            <p className="text-xs text-slate-400 font-bold">{session?.user.email}</p>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 pb-24">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        {view === 'profile' ? (
+          <Profile />
+        ) : (
+        <>
         <div className="flex gap-2 mb-6">
           <button onClick={() => selectTab('products')}
             className={`flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full ${tab === 'products' ? 'bg-[#c09d53] text-white' : 'bg-slate-100 text-slate-600'}`}>
@@ -179,7 +243,7 @@ export default function Dashboard() {
                       className="flex-1 flex items-center justify-center gap-1 text-xs font-bold border border-slate-200 rounded-lg py-2 hover:bg-slate-50">
                       <Pencil className="w-3.5 h-3.5" /> تعديل
                     </button>
-                    <button onClick={() => deleteProduct(p.id)}
+                    <button onClick={() => requestDeleteProduct(p.id)}
                       className="flex-1 flex items-center justify-center gap-1 text-xs font-bold border border-red-200 text-red-500 rounded-lg py-2 hover:bg-red-50">
                       <Trash2 className="w-3.5 h-3.5" /> حذف
                     </button>
@@ -208,7 +272,7 @@ export default function Dashboard() {
                       className="flex-1 flex items-center justify-center gap-1 text-xs font-bold border border-slate-200 rounded-lg py-2 hover:bg-slate-50">
                       <Pencil className="w-3.5 h-3.5" /> تعديل
                     </button>
-                    <button onClick={() => deleteCategory(c.id)}
+                    <button onClick={() => requestDeleteCategory(c.id)}
                       className="flex-1 flex items-center justify-center gap-1 text-xs font-bold border border-red-200 text-red-500 rounded-lg py-2 hover:bg-red-50">
                       <Trash2 className="w-3.5 h-3.5" /> حذف
                     </button>
@@ -219,39 +283,39 @@ export default function Dashboard() {
             </div>
           </>
         )}
+        </>
+        )}
       </main>
-      </div>
 
       {/* =========================================================================================
-          DEVELOPER CREDIT + CONTACT (always at the very bottom of the page)
+          DEVELOPER CREDIT + CONTACT (in-flow, at the very end of the page content — no fixed
+          white bar, matching the storefront exactly)
           ========================================================================================= */}
-      <div
-        className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-md border-t border-slate-200 flex items-center justify-center gap-4 py-2.5 px-4"
-        dir="rtl"
-      >
-        <p className="text-slate-500 text-[11px] sm:text-xs font-semibold">
+      <div className="w-full mt-10 mb-6 flex flex-col items-center gap-3 text-center" dir="rtl">
+        <p className="text-slate-500 text-xs sm:text-sm font-semibold">
           Website by <span className="font-black text-slate-700">Abdullah Elsawy</span>
         </p>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-6">
           <a
             href="https://wa.me/201061163091"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center group"
+            className="flex flex-col items-center gap-1.5 group"
           >
-            <span className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300 p-1 border border-slate-100">
+            <span className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300 p-1.5 border border-slate-100">
               <img src={whatsappLogo} alt="WhatsApp" className="w-full h-full object-contain" />
             </span>
           </a>
           <a
             href="mailto:abdallah666mo@gmail.com"
-            className="flex items-center justify-center group"
+            className="flex flex-col items-center gap-1.5 group"
           >
-            <span className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300 p-1 border border-slate-100">
+            <span className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300 p-1.5 border border-slate-100">
               <img src={gmailLogo} alt="Gmail" className="w-full h-full object-contain" />
             </span>
           </a>
         </div>
+      </div>
       </div>
 
       {editingProduct !== undefined && (
@@ -269,6 +333,39 @@ export default function Dashboard() {
           onClose={() => setEditingCategory(undefined)}
           onSaved={() => { setEditingCategory(undefined); load(); }}
         />
+      )}
+
+      {pendingDelete && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h3 className="font-black text-slate-900 mb-1">تأكيد الحذف</h3>
+            <p className="text-sm text-slate-500 font-semibold mb-4">
+              {pendingDelete.type === 'product'
+                ? 'لن يمكن التراجع عن حذف هذا المنتج.'
+                : 'حذف القسم لن يحذف المنتجات المرتبطة به.'} من فضلك أدخل كلمة مرور حسابك للتأكيد.
+            </p>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') confirmDelete(); }}
+              placeholder="كلمة المرور"
+              autoFocus
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold mb-2"
+            />
+            {confirmError && <p className="text-red-500 text-xs font-bold mb-2">{confirmError}</p>}
+            <div className="flex gap-2 mt-3">
+              <button onClick={cancelDelete}
+                className="flex-1 border border-slate-200 rounded-xl py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50">
+                إلغاء
+              </button>
+              <button onClick={confirmDelete} disabled={confirmLoading || !confirmPassword}
+                className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl py-2.5 text-sm font-bold">
+                {confirmLoading ? 'جاري التحقق...' : 'تأكيد الحذف'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
