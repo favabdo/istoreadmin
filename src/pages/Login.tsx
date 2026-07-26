@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import tecstoreLogo from '../tecstore-logo.png';
+import Footer from '../components/Footer';
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -19,7 +20,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f0f4f9] px-4" dir="rtl">
+    <div className="min-h-screen flex flex-col bg-[#f0f4f9]" dir="rtl">
+      <div className="flex-1 flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white rounded-3xl p-8 border border-slate-200 shadow-xl">
         <div className="flex flex-col items-center text-center mb-6">
           <div className="w-16 h-16 bg-[#c09d53]/10 rounded-full flex items-center justify-center mb-4 p-2.5">
@@ -68,6 +70,9 @@ export default function Login() {
           يمكن إنشاء حسابات المسؤولين من Supabase Dashboard &gt; Authentication &gt; Users.
         </p>
       </div>
+      </div>
+
+      <Footer />
     </div>
   );
 }

@@ -7,9 +7,8 @@ import { useAuth } from '../lib/AuthContext';
 import ProductForm from './ProductForm';
 import CategoryForm from './CategoryForm';
 import Profile from './Profile';
+import Footer from '../components/Footer';
 import tecstoreLogo from '../tecstore-logo.png';
-import whatsappLogo from '../whatsapp-logo.png';
-import gmailLogo from '../gmail-logo.png';
 
 const STOREFRONT_URL = import.meta.env.VITE_STOREFRONT_URL as string | undefined;
 
@@ -181,7 +180,7 @@ export default function Dashboard() {
         </div>
       </aside>
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-3">
           <button
@@ -198,7 +197,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full">
         {view === 'profile' ? (
           <Profile />
         ) : (
@@ -287,35 +286,9 @@ export default function Dashboard() {
         )}
       </main>
 
-      {/* =========================================================================================
-          DEVELOPER CREDIT + CONTACT (in-flow, at the very end of the page content — no fixed
-          white bar, matching the storefront exactly)
-          ========================================================================================= */}
-      <div className="w-full mt-10 mb-6 flex flex-col items-center gap-3 text-center" dir="rtl">
-        <p className="text-slate-500 text-xs sm:text-sm font-semibold">
-          Website by <span className="font-black text-slate-700">Abdullah Elsawy</span>
-        </p>
-        <div className="flex items-center gap-6">
-          <a
-            href="https://wa.me/201061163091"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex flex-col items-center gap-1.5 group"
-          >
-            <span className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300 p-1.5 border border-slate-100">
-              <img src={whatsappLogo} alt="WhatsApp" className="w-full h-full object-contain" />
-            </span>
-          </a>
-          <a
-            href="mailto:abdallah666mo@gmail.com"
-            className="flex flex-col items-center gap-1.5 group"
-          >
-            <span className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300 p-1.5 border border-slate-100">
-              <img src={gmailLogo} alt="Gmail" className="w-full h-full object-contain" />
-            </span>
-          </a>
-        </div>
-      </div>
+      {/* DEVELOPER CREDIT + CONTACT — pinned to the true end of the page body via the
+          min-h-screen flex-col wrapper above (not just glued under the content). */}
+      <Footer />
       </div>
 
       {editingProduct !== undefined && (
