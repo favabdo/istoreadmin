@@ -26,6 +26,7 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
   const [originalPrice, setOriginalPrice] = useState(existing?.originalPrice?.toString() ?? '');
   const [category, setCategory] = useState(existing?.category ?? categories[0]?.id ?? '');
   const [isNew, setIsNew] = useState(existing?.isNew ?? false);
+  const [condition, setCondition] = useState<'new' | 'used'>(existing?.condition === 'used' ? 'used' : 'new');
   const [screen, setScreen] = useState(existing?.specs?.screen ?? '');
   const [processor, setProcessor] = useState(existing?.specs?.processor ?? '');
   const [camera, setCamera] = useState(existing?.specs?.camera ?? '');
@@ -99,6 +100,7 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
       rating: existing?.rating ?? 5,
       reviewsCount: existing?.reviewsCount ?? 0,
       isNew,
+      condition,
       specs: { screen, processor, camera, battery },
     };
 
@@ -158,11 +160,31 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
                 ))}
               </select>
             </div>
-            <label className="flex items-center gap-2 font-bold text-sm text-slate-700 mb-2">
-              <input type="checkbox" checked={isNew} onChange={e => setIsNew(e.target.checked)} />
-              منتج جديد (يظهر عليه شارة "جديد")
-            </label>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">حالة المنتج</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCondition('new')}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-black border ${condition === 'new' ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                >
+                  جديد
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCondition('used')}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-black border ${condition === 'used' ? 'bg-amber-500 border-amber-500 text-white' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                >
+                  مستعمل
+                </button>
+              </div>
+            </div>
           </div>
+
+          <label className="flex items-center gap-2 font-bold text-sm text-slate-700">
+            <input type="checkbox" checked={isNew} onChange={e => setIsNew(e.target.checked)} />
+            منتج وصل حديثًا (يظهر عليه شارة "جديد" في صفحة تفاصيل المنتج)
+          </label>
 
           {/* Main image */}
           <div>
@@ -204,7 +226,8 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
 
           {/* Specs */}
           <div>
-            <p className="text-xs font-bold text-slate-600 mb-2">المواصفات</p>
+            <p className="text-xs font-bold text-slate-600 mb-1">المواصفات</p>
+            <p className="text-[11px] text-slate-400 font-bold mb-2">اي حقل تسيبه فاضي مش هيظهر خالص في صفحة المنتج بالمتجر.</p>
             <div className="grid grid-cols-2 gap-3">
               <input placeholder="الشاشة" value={screen} onChange={e => setScreen(e.target.value)} className="input" />
               <input placeholder="المعالج" value={processor} onChange={e => setProcessor(e.target.value)} className="input" />

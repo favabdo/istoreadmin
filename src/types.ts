@@ -12,6 +12,7 @@ export interface Product {
   rating: number;
   reviewsCount: number;
   isNew?: boolean;
+  condition?: 'new' | 'used';
   specs: {
     screen: string;
     processor: string;

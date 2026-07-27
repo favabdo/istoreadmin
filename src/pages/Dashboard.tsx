@@ -231,8 +231,11 @@ export default function Dashboard() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {products.map(p => (
                 <div key={p.id} className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col">
-                  <div className="w-full h-36 rounded-xl mb-3 bg-slate-100 flex items-center justify-center overflow-hidden">
+                  <div className="w-full h-36 rounded-xl mb-3 bg-slate-100 flex items-center justify-center overflow-hidden relative">
                     <img src={p.image} className="w-full h-full object-contain" />
+                    <span className={`absolute top-2 right-2 text-white text-[10px] font-black px-2 py-0.5 rounded-full ${p.condition === 'used' ? 'bg-amber-500' : 'bg-emerald-500'}`}>
+                      {p.condition === 'used' ? 'مستعمل' : 'جديد'}
+                    </span>
                   </div>
                   <p className="font-black text-slate-900 text-sm">{p.arabicName}</p>
                   <p className="text-xs text-slate-400 font-bold mb-2">{p.name}</p>
