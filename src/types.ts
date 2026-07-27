@@ -13,6 +13,7 @@ export interface Product {
   reviewsCount: number;
   isNew?: boolean;
   condition?: 'new' | 'used';
+  batteryHealth?: number;
   specs: {
     screen: string;
     processor: string;

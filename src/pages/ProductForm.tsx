@@ -4,6 +4,7 @@ import { Product, Category } from '../types';
 import { supabase } from '../lib/supabase';
 import { productToRow, slugify } from '../lib/mappers';
 import { uploadImage } from '../lib/uploadImage';
+import { IPHONE_MODELS } from '../lib/iphoneModels';
 
 interface Props {
   categories: Category[];
@@ -27,6 +28,12 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
   const [category, setCategory] = useState(existing?.category ?? categories[0]?.id ?? '');
   const [isNew, setIsNew] = useState(existing?.isNew ?? false);
   const [condition, setCondition] = useState<'new' | 'used'>(existing?.condition === 'used' ? 'used' : 'new');
+  const [batteryHealth, setBatteryHealth] = useState<string>(
+    existing?.batteryHealth != null ? String(existing.batteryHealth) : (existing?.condition === 'used' ? '' : '100')
+  );
+  const [selectedModelName, setSelectedModelName] = useState<string>(
+    existing && IPHONE_MODELS.some(m => m.name === existing.name) ? existing.name : ''
+  );
   const [screen, setScreen] = useState(existing?.specs?.screen ?? '');
   const [processor, setProcessor] = useState(existing?.specs?.processor ?? '');
   const [camera, setCamera] = useState(existing?.specs?.camera ?? '');
@@ -46,28 +53,51 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
     return () => { document.body.style.overflow = prevOverflow; };
   }, []);
 
-  const handleMainImageUpload = async (file: File) => {
+  // New devices are always assumed 100% battery health; used devices need the admin to type it in.
+  useEffect(() => {
+    if (condition === 'new') setBatteryHealth('100');
+  }, [condition]);
+
+  const handleModelSelect = (modelName: string) => {
+    setSelectedModelName(modelName);
+    if (!modelName) return;
+    const model = IPHONE_MODELS.find(m => m.name === modelName);
+    if (!model) return;
+    setName(model.name);
+    setArabicName(model.arabicName);
+    setScreen(model.specs.screen);
+    setProcessor(model.specs.processor);
+    setCamera(model.specs.camera);
+    setBattery(model.specs.battery);
+  };
+
+  const uploadFiles = async (files: FileList): Promise<string[]> => {
     setUploading(true);
     try {
-      const url = await uploadImage(file);
-      setMainImage(url);
+      const urls: string[] = [];
+      for (const file of Array.from(files)) {
+        urls.push(await uploadImage(file));
+      }
+      return urls;
     } catch (e: any) {
-      setError(e.message || 'فشل رفع الصورة');
+      setError(e.message || 'فشل رفع الصور');
+      return [];
     } finally {
       setUploading(false);
     }
   };
 
-  const handleExtraImageUpload = async (file: File) => {
-    setUploading(true);
-    try {
-      const url = await uploadImage(file);
-      setExtraImages(prev => [...prev, url]);
-    } catch (e: any) {
-      setError(e.message || 'فشل رفع الصورة');
-    } finally {
-      setUploading(false);
-    }
+  const handleMainImageUpload = async (files: FileList) => {
+    const urls = await uploadFiles(files);
+    if (urls.length === 0) return;
+    const [first, ...rest] = urls;
+    setMainImage(first);
+    if (rest.length) setExtraImages(prev => [...prev, ...rest]);
+  };
+
+  const handleExtraImageUpload = async (files: FileList) => {
+    const urls = await uploadFiles(files);
+    if (urls.length) setExtraImages(prev => [...prev, ...urls]);
   };
 
   const addColorRow = () => setColors(prev => [...prev, { name: '', hex: '#000000' }]);
@@ -82,6 +112,11 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
 
     if (!name.trim() || !arabicName.trim() || !price || !mainImage) {
       setError('برجاء ملء الاسم والاسم بالعربي والسعر واختيار صورة رئيسية.');
+      return;
+    }
+
+    if (condition === 'used' && batteryHealth.trim() === '') {
+      setError('برجاء إدخال نسبة حالة البطارية للجهاز المستعمل.');
       return;
     }
 
@@ -101,6 +136,7 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
       reviewsCount: existing?.reviewsCount ?? 0,
       isNew,
       condition,
+      batteryHealth: batteryHealth.trim() !== '' ? Math.max(0, Math.min(100, parseFloat(batteryHealth))) : undefined,
       specs: { screen, processor, camera, battery },
     };
 
@@ -129,6 +165,19 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1">اختيار سريع من موديلات آيفون (اختياري)</label>
+            <select value={selectedModelName} onChange={e => handleModelSelect(e.target.value)} className="input">
+              <option value="">-- اكتب الاسم بنفسك، أو اختر موديل جاهز من هنا --</option>
+              {IPHONE_MODELS.map(m => (
+                <option key={m.name} value={m.name}>{m.name} — {m.arabicName}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-400 font-bold mt-1">
+              اختيار موديل من القائمة هيملى الاسم بالعربي والانجليزي والمواصفات تلقائيًا، وبعدين تقدر تعدّل فيها زي ما تحب. لو الجهاز مش في القائمة سيبها فاضية واكتب بياناته يدويًا تحت.
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">الاسم (English)</label>
@@ -181,6 +230,25 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1">حالة البطارية (%)</label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={batteryHealth}
+              disabled={condition === 'new'}
+              onChange={e => setBatteryHealth(e.target.value)}
+              placeholder={condition === 'used' ? 'مثال: 87' : ''}
+              className="input disabled:bg-slate-100 disabled:text-slate-400"
+            />
+            <p className="text-[11px] text-slate-400 font-bold mt-1">
+              {condition === 'new'
+                ? 'المنتجات الجديدة بتتحط تلقائيًا 100%.'
+                : 'الجهاز مستعمل — اكتب نسبة حالة البطارية الحقيقية بالظبط زي ما هتظهر للعميل.'}
+            </p>
+          </div>
+
           <label className="flex items-center gap-2 font-bold text-sm text-slate-700">
             <input type="checkbox" checked={isNew} onChange={e => setIsNew(e.target.checked)} />
             منتج وصل حديثًا (يظهر عليه شارة "جديد" في صفحة تفاصيل المنتج)
@@ -189,7 +257,7 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
           {/* Main image */}
           <div>
             <label className="block text-xs font-bold text-slate-600 mb-1">الصورة الرئيسية</label>
-            <p className="text-[11px] text-slate-400 font-bold mb-2">هذه المعاينة تُظهر شكل الصورة بالظبط زي ما هتظهر في كارت المنتج بالمتجر (الصورة كاملة من غير قص).</p>
+            <p className="text-[11px] text-slate-400 font-bold mb-2">هذه المعاينة تُظهر شكل الصورة بالظبط زي ما هتظهر في كارت المنتج بالمتجر (الصورة كاملة من غير قص). تقدر تختار أكتر من صورة مرة واحدة: أول صورة هتبقى الرئيسية والباقي هينضاف كصور إضافية.</p>
             {mainImage && (
               <div className="w-full max-w-[220px] h-56 rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 mb-3 flex items-center justify-center">
                 <img src={mainImage} className="w-full h-full object-contain" />
@@ -197,8 +265,8 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
             )}
             <label className="flex items-center gap-2 border border-dashed border-slate-300 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 cursor-pointer hover:bg-slate-50 w-fit">
               <Upload className="w-4 h-4" />
-              {uploading ? 'جاري الرفع...' : mainImage ? 'تغيير الصورة' : 'رفع صورة'}
-              <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files && handleMainImageUpload(e.target.files[0])} />
+              {uploading ? 'جاري الرفع...' : mainImage ? 'تغيير الصورة (يمكن اختيار أكثر من صورة)' : 'رفع صورة أو أكثر'}
+              <input type="file" accept="image/*" multiple className="hidden" onChange={e => e.target.files && e.target.files.length > 0 && handleMainImageUpload(e.target.files)} />
             </label>
           </div>
 
@@ -218,8 +286,8 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
                 </div>
               ))}
               <label className="flex items-center gap-2 border border-dashed border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-600 cursor-pointer hover:bg-slate-50">
-                <Upload className="w-4 h-4" /> إضافة
-                <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files && handleExtraImageUpload(e.target.files[0])} />
+                <Upload className="w-4 h-4" /> إضافة (يمكن اختيار أكثر من صورة)
+                <input type="file" accept="image/*" multiple className="hidden" onChange={e => e.target.files && e.target.files.length > 0 && handleExtraImageUpload(e.target.files)} />
               </label>
             </div>
           </div>
