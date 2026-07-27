@@ -3,6 +3,7 @@ import { Camera, Loader2 } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 import { uploadImage } from '../lib/uploadImage';
 import { supabase } from '../lib/supabase';
+import ImageCropModal from '../components/ImageCropModal';
 
 // Profile page (accessed from the sidebar): lets the admin set a profile
 // picture and change their email / password. Kept as a plain Supabase Auth
@@ -13,6 +14,7 @@ export default function Profile() {
 
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState('');
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
   const [email, setEmail] = useState(session?.user.email || '');
   const [emailSaving, setEmailSaving] = useState(false);
@@ -27,19 +29,31 @@ export default function Profile() {
 
   const avatarUrl = session?.user.user_metadata?.avatar_url as string | undefined;
 
+  // Selecting a file no longer uploads it right away — it opens the crop/zoom
+  // modal first so the admin controls exactly which part of the photo is used.
   const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      setAvatarError('حجم الصورة كبير جدًا، الرجاء اختيار صورة أقل من 2 ميجابايت.');
+    if (file.size > 8 * 1024 * 1024) {
+      setAvatarError('حجم الصورة كبير جدًا، الرجاء اختيار صورة أقل من 8 ميجابايت.');
       return;
     }
 
     setAvatarError('');
+    const reader = new FileReader();
+    reader.onload = () => setCropSrc(reader.result as string);
+    reader.onerror = () => setAvatarError('تعذر قراءة الصورة، حاول باختيار صورة تانية.');
+    reader.readAsDataURL(file);
+  };
+
+  const handleCropSave = async (blob: Blob) => {
+    setCropSrc(null);
     setUploadingAvatar(true);
+    setAvatarError('');
     try {
+      const file = new File([blob], `avatar-${Date.now()}.jpg`, { type: 'image/jpeg' });
       const url = await uploadImage(file);
       const { error } = await supabase.auth.updateUser({ data: { avatar_url: url } });
       if (error) throw error;
@@ -115,9 +129,17 @@ export default function Profile() {
           </button>
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
         </div>
-        <p className="text-xs text-slate-400 font-bold mt-3">اضغط على أيقونة الكاميرا لتغيير الصورة</p>
+        <p className="text-xs text-slate-400 font-bold mt-3">اضغط على أيقونة الكاميرا لتغيير الصورة، وهتقدر تحرّكها وتكبّرها قبل الحفظ</p>
         {avatarError && <p className="text-red-500 text-xs font-bold mt-2">{avatarError}</p>}
       </div>
+
+      {cropSrc && (
+        <ImageCropModal
+          imageSrc={cropSrc}
+          onCancel={() => setCropSrc(null)}
+          onSave={handleCropSave}
+        />
+      )}
 
       {/* Email */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 mb-5">
