@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Pencil, Trash2, LogOut, Package, LayoutGrid, ExternalLink, Menu, X, Warehouse, UserRound, QrCode, Printer } from 'lucide-react';
+import { Plus, Pencil, Trash2, LogOut, Package, LayoutGrid, ExternalLink, Menu, X, Warehouse, ClipboardList, UserRound, QrCode, Printer } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { mapProductRow, mapCategoryRow } from '../lib/mappers';
 import { Product, Category } from '../types';
@@ -7,6 +7,7 @@ import { useAuth } from '../lib/AuthContext';
 import ProductForm from './ProductForm';
 import CategoryForm from './CategoryForm';
 import Profile from './Profile';
+import InventoryTracking from './InventoryTracking';
 import Footer from '../components/Footer';
 import QrCodePreview from '../components/QrCodePreview';
 import { generateQrDataUrl } from '../lib/generateQr';
@@ -29,7 +30,7 @@ export default function Dashboard() {
   // actual الأقسام/المنتجات switcher lives in the page body itself. Future modules
   // (invoices, sales, reports) get added as sibling nav items later.
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [view, setView] = useState<'inventory' | 'profile'>('inventory');
+  const [view, setView] = useState<'inventory' | 'tracking' | 'profile'>('inventory');
 
   // Delete requires typing the account password first, for both products and categories.
   const [pendingDelete, setPendingDelete] = useState<{ type: 'product' | 'category'; id: string } | null>(null);
@@ -174,7 +175,17 @@ export default function Dashboard() {
             إدارة المخزون
           </button>
 
-          {/* Future groups (الفواتير، المبيعات، التقارير) get added here as new sibling
+          {/* Group: متابعة المخزون - مشتريات / مصروفات / مبيعات. Lives in its own page
+              component (InventoryTracking) which handles its own sub-tabs internally. */}
+          <button
+            onClick={() => { setView('tracking'); setSidebarOpen(false); }}
+            className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-black ${view === 'tracking' ? 'bg-[#c09d53]/10 text-[#c09d53]' : 'text-slate-700 hover:bg-slate-50'}`}
+          >
+            <ClipboardList className="w-4 h-4" />
+            متابعة المخزون
+          </button>
+
+          {/* Future groups (الفواتير، التقارير) get added here as new sibling
               buttons once that part of the system is built. */}
         </nav>
 
@@ -220,7 +231,7 @@ export default function Dashboard() {
           </button>
           <div>
             <h1 className="font-black text-lg text-slate-900">
-              {view === 'profile' ? 'الملف الشخصي' : (tab === 'products' ? 'المنتجات' : 'الأقسام')}
+              {view === 'profile' ? 'الملف الشخصي' : view === 'tracking' ? 'متابعة المخزون' : (tab === 'products' ? 'المنتجات' : 'الأقسام')}
             </h1>
           </div>
         </div>
@@ -229,6 +240,8 @@ export default function Dashboard() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full">
         {view === 'profile' ? (
           <Profile />
+        ) : view === 'tracking' ? (
+          <InventoryTracking />
         ) : (
         <>
         <div className="flex gap-2 mb-6">

@@ -47,3 +47,31 @@ export interface Guarantee {
   iconName: string;
   color: string;
 }
+
+export interface Purchase {
+  id: string;
+  date: string;
+  itemName: string;
+  supplierName?: string;
+  quantity: number;
+  unitCost: number;
+  notes?: string;
+}
+
+export interface Expense {
+  id: string;
+  date: string;
+  title: string;
+  amount: number;
+  notes?: string;
+}
+
+export interface Sale {
+  id: string;
+  date: string;
+  itemName: string;
+  customerName?: string;
+  quantity: number;
+  unitPrice: number;
+  notes?: string;
+}

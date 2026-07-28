@@ -1,4 +1,4 @@
-import { Product, Category } from '../types';
+import { Product, Category, Purchase, Expense, Sale } from '../types';
 
 export function mapProductRow(row: any): Product {
   return {
@@ -73,4 +73,73 @@ export function slugify(input: string): string {
     .toLowerCase()
     .replace(/[^\w\u0600-\u06FF]+/g, '-')
     .replace(/^-+|-+$/g, '') || `item-${Date.now()}`;
+}
+
+// ---------------------------------------------------------------------------
+// متابعة المخزون: مشتريات / مصروفات / مبيعات
+// ---------------------------------------------------------------------------
+
+export function mapPurchaseRow(row: any): Purchase {
+  return {
+    id: row.id,
+    date: row.date,
+    itemName: row.item_name,
+    supplierName: row.supplier_name ?? undefined,
+    quantity: Number(row.quantity),
+    unitCost: Number(row.unit_cost),
+    notes: row.notes ?? undefined,
+  };
+}
+
+export function purchaseToRow(p: Omit<Purchase, 'id'> & { id?: string }) {
+  return {
+    date: p.date,
+    item_name: p.itemName,
+    supplier_name: p.supplierName?.trim() || null,
+    quantity: p.quantity,
+    unit_cost: p.unitCost,
+    notes: p.notes?.trim() || null,
+  };
+}
+
+export function mapExpenseRow(row: any): Expense {
+  return {
+    id: row.id,
+    date: row.date,
+    title: row.title,
+    amount: Number(row.amount),
+    notes: row.notes ?? undefined,
+  };
+}
+
+export function expenseToRow(e: Omit<Expense, 'id'> & { id?: string }) {
+  return {
+    date: e.date,
+    title: e.title,
+    amount: e.amount,
+    notes: e.notes?.trim() || null,
+  };
+}
+
+export function mapSaleRow(row: any): Sale {
+  return {
+    id: row.id,
+    date: row.date,
+    itemName: row.item_name,
+    customerName: row.customer_name ?? undefined,
+    quantity: Number(row.quantity),
+    unitPrice: Number(row.unit_price),
+    notes: row.notes ?? undefined,
+  };
+}
+
+export function saleToRow(s: Omit<Sale, 'id'> & { id?: string }) {
+  return {
+    date: s.date,
+    item_name: s.itemName,
+    customer_name: s.customerName?.trim() || null,
+    quantity: s.quantity,
+    unit_price: s.unitPrice,
+    notes: s.notes?.trim() || null,
+  };
 }
