@@ -14,6 +14,9 @@ export interface Product {
   isNew?: boolean;
   condition?: 'new' | 'used';
   batteryHealth?: number;
+  /** Admin-only: this device's physical serial number, used to generate a QR code
+   *  for later invoice scanning. Never sent to / rendered by the storefront app. */
+  serialNumber?: string;
   specs: {
     screen: string;
     processor: string;

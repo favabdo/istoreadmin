@@ -17,6 +17,7 @@ export function mapProductRow(row: any): Product {
     isNew: row.is_new ?? false,
     condition: row.condition === 'used' ? 'used' : 'new',
     batteryHealth: row.battery_health != null ? Number(row.battery_health) : undefined,
+    serialNumber: row.serial_number ?? undefined,
     specs: row.specs ?? { screen: '', processor: '', camera: '', battery: '' },
   };
 }
@@ -38,6 +39,7 @@ export function productToRow(p: Product) {
     is_new: p.isNew ?? false,
     condition: p.condition === 'used' ? 'used' : 'new',
     battery_health: p.batteryHealth ?? null,
+    serial_number: p.serialNumber?.trim() || null,
     specs: p.specs,
   };
 }

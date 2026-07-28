@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { productToRow, slugify } from '../lib/mappers';
 import { uploadImage } from '../lib/uploadImage';
 import { IPHONE_MODELS } from '../lib/iphoneModels';
+import QrCodePreview from '../components/QrCodePreview';
 
 interface Props {
   categories: Category[];
@@ -43,6 +44,10 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
   );
   const [mainImage, setMainImage] = useState(existing?.image ?? '');
   const [extraImages, setExtraImages] = useState<string[]>(existing?.images?.filter(i => i !== existing?.image) ?? []);
+  const [serialNumber, setSerialNumber] = useState(existing?.serialNumber ?? '');
+  // Purely a visual aid: a temporary local preview of the serial-number label photo so the
+  // admin can zoom in and read it while typing. It is never uploaded or saved anywhere.
+  const [serialPhotoPreview, setSerialPhotoPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -100,6 +105,12 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
     if (urls.length) setExtraImages(prev => [...prev, ...urls]);
   };
 
+  const handleSerialPhotoPick = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => setSerialPhotoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
   const addColorRow = () => setColors(prev => [...prev, { name: '', hex: '#000000' }]);
   const removeColorRow = (idx: number) => setColors(prev => prev.filter((_, i) => i !== idx));
   const updateColorRow = (idx: number, field: 'name' | 'hex', value: string) => {
@@ -137,6 +148,7 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
       isNew,
       condition,
       batteryHealth: batteryHealth.trim() !== '' ? Math.max(0, Math.min(100, parseFloat(batteryHealth))) : undefined,
+      serialNumber: serialNumber.trim() || undefined,
       specs: { screen, processor, camera, battery },
     };
 
@@ -253,6 +265,48 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
             <input type="checkbox" checked={isNew} onChange={e => setIsNew(e.target.checked)} />
             منتج وصل حديثًا (يظهر عليه شارة "جديد" في صفحة تفاصيل المنتج)
           </label>
+
+          {/* Serial number + QR — admin-only, never shown to customers or on the storefront */}
+          <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/60">
+            <p className="text-xs font-bold text-slate-600 mb-1">الرقم التسلسلي (Serial Number) و QR الخاص بالجهاز</p>
+            <p className="text-[11px] text-slate-400 font-bold mb-3">
+              ده بيظهر عندك بس في لوحة التحكم (مش في المتجر ولا عند العميل)، وهتستخدمه بعدين تسكنه وقت عمل فاتورة البيع بدل ما تدور على الجهاز أو تكتب رقمه يدويًا.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 space-y-2">
+                <label className="flex items-center gap-2 border border-dashed border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-600 cursor-pointer hover:bg-white w-fit bg-white/60">
+                  <Upload className="w-4 h-4" /> رفع صورة ملصق السريال (اختياري، للمساعدة في القراءة بس)
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => e.target.files?.[0] && handleSerialPhotoPick(e.target.files[0])}
+                  />
+                </label>
+
+                {serialPhotoPreview && (
+                  <div className="rounded-xl border border-slate-200 bg-white p-2">
+                    <img src={serialPhotoPreview} className="w-full max-h-56 object-contain rounded-lg" />
+                    <p className="text-[10px] text-slate-400 font-bold mt-1">اقرأ الرقم من الصورة واكتبه في الخانة تحت — الصورة دي مش بتتحفظ، بتستخدم للمساعدة بس.</p>
+                  </div>
+                )}
+
+                <input
+                  value={serialNumber}
+                  onChange={e => setSerialNumber(e.target.value)}
+                  placeholder="مثال: JN9M120G2F"
+                  className="input font-mono tracking-wide"
+                  dir="ltr"
+                />
+              </div>
+
+              <div className="flex flex-col items-center gap-1 shrink-0">
+                <QrCodePreview value={serialNumber} size={110} />
+                <span className="text-[10px] text-slate-400 font-bold">معاينة الـ QR</span>
+              </div>
+            </div>
+          </div>
 
           {/* Main image */}
           <div>

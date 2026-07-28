@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Pencil, Trash2, LogOut, Package, LayoutGrid, ExternalLink, Menu, X, Warehouse, UserRound } from 'lucide-react';
+import { Plus, Pencil, Trash2, LogOut, Package, LayoutGrid, ExternalLink, Menu, X, Warehouse, UserRound, QrCode, Printer } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { mapProductRow, mapCategoryRow } from '../lib/mappers';
 import { Product, Category } from '../types';
@@ -8,6 +8,8 @@ import ProductForm from './ProductForm';
 import CategoryForm from './CategoryForm';
 import Profile from './Profile';
 import Footer from '../components/Footer';
+import QrCodePreview from '../components/QrCodePreview';
+import { generateQrDataUrl } from '../lib/generateQr';
 import tecstoreLogo from '../tecstore-logo.png';
 
 const STOREFRONT_URL = import.meta.env.VITE_STOREFRONT_URL as string | undefined;
@@ -34,6 +36,33 @@ export default function Dashboard() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [confirmError, setConfirmError] = useState('');
   const [confirmLoading, setConfirmLoading] = useState(false);
+
+  // QR enlarge/print — admin-only view of a product's serial-number QR code.
+  const [qrProduct, setQrProduct] = useState<Product | null>(null);
+
+  const printSerialQr = async (product: Product) => {
+    if (!product.serialNumber) return;
+    const dataUrl = await generateQrDataUrl(product.serialNumber);
+    const win = window.open('', '_blank', 'width=420,height=520');
+    if (!win) return;
+    win.document.write(`
+      <html dir="rtl">
+        <head>
+          <title>QR - ${product.serialNumber}</title>
+          <style>
+            body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; gap: 12px; }
+            img { width: 260px; height: 260px; }
+            p { font-weight: 800; font-size: 14px; direction: ltr; }
+          </style>
+        </head>
+        <body>
+          <img src="${dataUrl}" onload="window.print(); window.onafterprint = () => window.close();" />
+          <p>${product.serialNumber}</p>
+        </body>
+      </html>
+    `);
+    win.document.close();
+  };
 
   const selectTab = (t: 'products' | 'categories') => {
     setTab(t);
@@ -240,6 +269,19 @@ export default function Dashboard() {
                   <p className="font-black text-slate-900 text-sm">{p.arabicName}</p>
                   <p className="text-xs text-slate-400 font-bold mb-2">{p.name}</p>
                   <p className="text-[#c09d53] font-black mb-3">{p.price.toLocaleString()} ج.م</p>
+
+                  {p.serialNumber && (
+                    <button
+                      type="button"
+                      onClick={() => setQrProduct(p)}
+                      className="flex items-center gap-2 border border-slate-200 rounded-lg px-2.5 py-1.5 mb-3 hover:bg-slate-50 w-fit"
+                      title="تكبير / طباعة QR الرقم التسلسلي"
+                    >
+                      <QrCodePreview value={p.serialNumber} size={28} />
+                      <span className="text-[10px] font-bold text-slate-500 font-mono" dir="ltr">{p.serialNumber}</span>
+                    </button>
+                  )}
+
                   <div className="mt-auto flex gap-2">
                     <button onClick={() => setEditingProduct(p)}
                       className="flex-1 flex items-center justify-center gap-1 text-xs font-bold border border-slate-200 rounded-lg py-2 hover:bg-slate-50">
@@ -309,6 +351,26 @@ export default function Dashboard() {
           onClose={() => setEditingCategory(undefined)}
           onSaved={() => { setEditingCategory(undefined); load(); }}
         />
+      )}
+
+      {qrProduct && qrProduct.serialNumber && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" dir="rtl" onClick={() => setQrProduct(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl flex flex-col items-center" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setQrProduct(null)} className="self-end -mt-2 -ml-2 w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center">
+              <X className="w-4 h-4" />
+            </button>
+            <h3 className="font-black text-slate-900 mb-1 text-sm">{qrProduct.arabicName}</h3>
+            <QrCodePreview value={qrProduct.serialNumber} size={220} />
+            <p className="text-sm font-mono font-bold text-slate-600 mt-3" dir="ltr">{qrProduct.serialNumber}</p>
+            <p className="text-[11px] text-slate-400 font-bold mt-1 text-center">اسكن الكود ده وقت عمل فاتورة البيع بدل كتابة الرقم يدويًا.</p>
+            <button
+              onClick={() => printSerialQr(qrProduct)}
+              className="mt-4 flex items-center justify-center gap-2 bg-[#c09d53] hover:bg-[#a9863f] text-white font-bold text-sm px-4 py-2.5 rounded-xl w-full"
+            >
+              <Printer className="w-4 h-4" /> طباعة الملصق
+            </button>
+          </div>
+        </div>
       )}
 
       {pendingDelete && (
