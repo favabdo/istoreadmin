@@ -28,6 +28,7 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
   const [originalPrice, setOriginalPrice] = useState(existing?.originalPrice?.toString() ?? '');
   const [category, setCategory] = useState(existing?.category ?? categories[0]?.id ?? '');
   const [isNew, setIsNew] = useState(existing?.isNew ?? false);
+  const [isSold, setIsSold] = useState(existing?.isSold ?? false);
   const [condition, setCondition] = useState<'new' | 'used'>(existing?.condition === 'used' ? 'used' : 'new');
   const [batteryHealth, setBatteryHealth] = useState<string>(
     existing?.batteryHealth != null ? String(existing.batteryHealth) : (existing?.condition === 'used' ? '' : '100')
@@ -146,6 +147,7 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
       rating: existing?.rating ?? 5,
       reviewsCount: existing?.reviewsCount ?? 0,
       isNew,
+      isSold,
       condition,
       batteryHealth: batteryHealth.trim() !== '' ? Math.max(0, Math.min(100, parseFloat(batteryHealth))) : undefined,
       serialNumber: serialNumber.trim() || undefined,
@@ -264,6 +266,11 @@ export default function ProductForm({ categories, existing, onClose, onSaved }: 
           <label className="flex items-center gap-2 font-bold text-sm text-slate-700">
             <input type="checkbox" checked={isNew} onChange={e => setIsNew(e.target.checked)} />
             منتج وصل حديثًا (يظهر عليه شارة "جديد" في صفحة تفاصيل المنتج)
+          </label>
+
+          <label className="flex items-center gap-2 font-bold text-sm text-slate-700">
+            <input type="checkbox" checked={isSold} onChange={e => setIsSold(e.target.checked)} />
+            الجهاز مباع (بيفضل ظاهر في المتجر بس بلون رمادي ومكتوب عليه "مباع"، ومبيتباعش تاني)
           </label>
 
           {/* Serial number + QR — admin-only, never shown to customers or on the storefront */}

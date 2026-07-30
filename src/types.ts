@@ -12,6 +12,7 @@ export interface Product {
   rating: number;
   reviewsCount: number;
   isNew?: boolean;
+  isSold?: boolean;
   condition?: 'new' | 'used';
   batteryHealth?: number;
   /** Admin-only: this device's physical serial number, used to generate a QR code

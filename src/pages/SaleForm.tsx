@@ -44,7 +44,7 @@ export default function SaleForm({ categories, existing, onClose, onSaved }: Pro
 
   const [matchedProductId, setMatchedProductId] = useState<string | undefined>(existing?.productId);
   const [serialLookupNote, setSerialLookupNote] = useState('');
-  const [removeFromStore, setRemoveFromStore] = useState(true);
+  const [markSoldInStore, setMarkSoldInStore] = useState(true);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -81,7 +81,11 @@ export default function SaleForm({ categories, existing, onClose, onSaved }: Pro
       setCamera(p.specs?.camera ?? '');
       setBattery(p.specs?.battery ?? '');
       setColors(p.colors?.length ? p.colors.map((c: any) => ({ name: c.name, hex: c.hex })) : [{ name: 'أسود', hex: '#1c1c1e' }]);
-      setSerialLookupNote('الجهاز ده موجود عندك — البيانات اتملت تلقائيًا، وتقدر تعدّل السعر لو البيع اتم بسعر مختلف.');
+      setSerialLookupNote(
+        p.is_sold
+          ? 'تنبيه: الجهاز ده متسجل عندك بالفعل كـ"مباع" — اتأكد إنك مش بتسجل نفس البيع مرتين.'
+          : 'الجهاز ده موجود عندك — البيانات اتملت تلقائيًا، وتقدر تعدّل السعر لو البيع اتم بسعر مختلف.'
+      );
     }, 500);
     return () => { if (lookupTimer.current) clearTimeout(lookupTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -167,8 +171,8 @@ export default function SaleForm({ categories, existing, onClose, onSaved }: Pro
       return;
     }
 
-    if (!isEdit && removeFromStore && matchedProductId) {
-      await supabase.from('products').delete().eq('id', matchedProductId);
+    if (!isEdit && markSoldInStore && matchedProductId) {
+      await supabase.from('products').update({ is_sold: true }).eq('id', matchedProductId);
     }
 
     setSaving(false);
@@ -230,7 +234,7 @@ export default function SaleForm({ categories, existing, onClose, onSaved }: Pro
 
                 <input value={serialNumber} onChange={e => setSerialNumber(e.target.value)} placeholder="مثال: JN9M120G2F" className="input font-mono tracking-wide" dir="ltr" />
                 {serialLookupNote && (
-                  <p className={`text-[11px] font-bold ${matchedProductId ? 'text-emerald-600' : 'text-amber-600'}`}>{serialLookupNote}</p>
+                  <p className={`text-[11px] font-bold ${matchedProductId && !serialLookupNote.startsWith('تنبيه') ? 'text-emerald-600' : 'text-amber-600'}`}>{serialLookupNote}</p>
                 )}
               </div>
 
@@ -345,8 +349,8 @@ export default function SaleForm({ categories, existing, onClose, onSaved }: Pro
 
           {!isEdit && matchedProductId && (
             <label className="flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 rounded-xl px-3 py-2.5 cursor-pointer">
-              <input type="checkbox" checked={removeFromStore} onChange={e => setRemoveFromStore(e.target.checked)} className="w-4 h-4" />
-              إزالة الجهاز من المتجر بعد تسجيل البيع (متبقّي مفعّل تلقائيًا)
+              <input type="checkbox" checked={markSoldInStore} onChange={e => setMarkSoldInStore(e.target.checked)} className="w-4 h-4" />
+              وضع علامة "مباع" على الجهاز في المتجر (بيفضل ظاهر بس بلون رمادي، ومبيتباعش تاني) — مفعّل تلقائيًا
             </label>
           )}
 
