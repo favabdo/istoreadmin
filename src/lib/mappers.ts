@@ -83,10 +83,19 @@ export function mapPurchaseRow(row: any): Purchase {
   return {
     id: row.id,
     date: row.date,
-    itemName: row.item_name,
+    productId: row.product_id ?? undefined,
+    name: row.name,
+    arabicName: row.arabic_name,
+    price: Number(row.price),
+    category: row.category,
+    condition: row.condition === 'used' ? 'used' : 'new',
+    batteryHealth: row.battery_health != null ? Number(row.battery_health) : undefined,
+    serialNumber: row.serial_number ?? undefined,
+    image: row.image ?? undefined,
+    images: row.images ?? undefined,
+    specs: row.specs ?? { screen: '', processor: '', camera: '', battery: '' },
+    colors: row.colors ?? [],
     supplierName: row.supplier_name ?? undefined,
-    quantity: Number(row.quantity),
-    unitCost: Number(row.unit_cost),
     notes: row.notes ?? undefined,
   };
 }
@@ -94,10 +103,19 @@ export function mapPurchaseRow(row: any): Purchase {
 export function purchaseToRow(p: Omit<Purchase, 'id'> & { id?: string }) {
   return {
     date: p.date,
-    item_name: p.itemName,
+    product_id: p.productId ?? null,
+    name: p.name,
+    arabic_name: p.arabicName,
+    price: p.price,
+    category: p.category,
+    condition: p.condition === 'used' ? 'used' : 'new',
+    battery_health: p.batteryHealth ?? null,
+    serial_number: p.serialNumber?.trim() || null,
+    image: p.image ?? null,
+    images: p.images ?? null,
+    specs: p.specs,
+    colors: p.colors,
     supplier_name: p.supplierName?.trim() || null,
-    quantity: p.quantity,
-    unit_cost: p.unitCost,
     notes: p.notes?.trim() || null,
   };
 }
@@ -125,10 +143,18 @@ export function mapSaleRow(row: any): Sale {
   return {
     id: row.id,
     date: row.date,
-    itemName: row.item_name,
+    productId: row.product_id ?? undefined,
+    name: row.name,
+    arabicName: row.arabic_name,
+    price: Number(row.price),
+    category: row.category,
+    condition: row.condition === 'used' ? 'used' : 'new',
+    batteryHealth: row.battery_health != null ? Number(row.battery_health) : undefined,
+    serialNumber: row.serial_number ?? undefined,
+    specs: row.specs ?? { screen: '', processor: '', camera: '', battery: '' },
+    colors: row.colors ?? [],
     customerName: row.customer_name ?? undefined,
-    quantity: Number(row.quantity),
-    unitPrice: Number(row.unit_price),
+    customerPhone: row.customer_phone ?? undefined,
     notes: row.notes ?? undefined,
   };
 }
@@ -136,10 +162,18 @@ export function mapSaleRow(row: any): Sale {
 export function saleToRow(s: Omit<Sale, 'id'> & { id?: string }) {
   return {
     date: s.date,
-    item_name: s.itemName,
+    product_id: s.productId ?? null,
+    name: s.name,
+    arabic_name: s.arabicName,
+    price: s.price,
+    category: s.category,
+    condition: s.condition === 'used' ? 'used' : 'new',
+    battery_health: s.batteryHealth ?? null,
+    serial_number: s.serialNumber?.trim() || null,
+    specs: s.specs,
+    colors: s.colors,
     customer_name: s.customerName?.trim() || null,
-    quantity: s.quantity,
-    unit_price: s.unitPrice,
+    customer_phone: s.customerPhone?.trim() || null,
     notes: s.notes?.trim() || null,
   };
 }

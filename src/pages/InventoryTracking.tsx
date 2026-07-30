@@ -1,19 +1,24 @@
-import { useEffect, useState, useCallback, FormEvent, ReactNode } from 'react';
-import { Plus, Pencil, Trash2, X, ShoppingCart, Receipt, TrendingUp } from 'lucide-react';
+import { useEffect, useState, useCallback, FormEvent } from 'react';
+import { Plus, Pencil, Trash2, ShoppingCart, Receipt, TrendingUp, Printer } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { mapPurchaseRow, purchaseToRow, mapExpenseRow, expenseToRow, mapSaleRow, saleToRow } from '../lib/mappers';
-import { Purchase, Expense, Sale } from '../types';
+import { mapPurchaseRow, mapExpenseRow, expenseToRow, mapSaleRow, mapCategoryRow } from '../lib/mappers';
+import { Purchase, Expense, Sale, Category } from '../types';
 import { useAuth } from '../lib/AuthContext';
+import PurchaseForm from './PurchaseForm';
+import SaleForm from './SaleForm';
+import { printSaleInvoice } from '../lib/invoice';
 
 type TrackTab = 'purchases' | 'expenses' | 'sales';
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const money = (n: number) => n.toLocaleString('ar-EG', { maximumFractionDigits: 2 });
+const conditionLabel = (c: 'new' | 'used') => (c === 'new' ? 'جديد' : 'مستعمل');
 
 export default function InventoryTracking() {
   const { session } = useAuth();
   const [tab, setTab] = useState<TrackTab>('purchases');
 
+  const [categories, setCategories] = useState<Category[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
@@ -28,13 +33,17 @@ export default function InventoryTracking() {
   const [confirmError, setConfirmError] = useState('');
   const [confirmLoading, setConfirmLoading] = useState(false);
 
+  const categoryLabel = (id: string) => categories.find(c => c.id === id)?.arabicName ?? id;
+
   const load = useCallback(async () => {
     setLoading(true);
-    const [purRes, expRes, saleRes] = await Promise.all([
+    const [catRes, purRes, expRes, saleRes] = await Promise.all([
+      supabase.from('categories').select('*').order('sort_order', { ascending: true }),
       supabase.from('purchases').select('*').order('date', { ascending: false }),
       supabase.from('expenses').select('*').order('date', { ascending: false }),
       supabase.from('sales').select('*').order('date', { ascending: false }),
     ]);
+    setCategories((catRes.data || []).map(mapCategoryRow));
     setPurchases((purRes.data || []).map(mapPurchaseRow));
     setExpenses((expRes.data || []).map(mapExpenseRow));
     setSales((saleRes.data || []).map(mapSaleRow));
@@ -43,9 +52,9 @@ export default function InventoryTracking() {
 
   useEffect(() => { load(); }, [load]);
 
-  const totalPurchases = purchases.reduce((s, p) => s + p.quantity * p.unitCost, 0);
+  const totalPurchases = purchases.reduce((s, p) => s + p.price, 0);
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-  const totalSales = sales.reduce((s, sl) => s + sl.quantity * sl.unitPrice, 0);
+  const totalSales = sales.reduce((s, sl) => s + sl.price, 0);
 
   const requestDelete = (type: TrackTab, id: string) => {
     setPendingDelete({ type, id });
@@ -75,8 +84,7 @@ export default function InventoryTracking() {
       return;
     }
 
-    const table = pendingDelete.type === 'purchases' ? 'purchases' : pendingDelete.type === 'expenses' ? 'expenses' : 'sales';
-    await supabase.from(table).delete().eq('id', pendingDelete.id);
+    await supabase.from(pendingDelete.type).delete().eq('id', pendingDelete.id);
 
     setConfirmLoading(false);
     setPendingDelete(null);
@@ -107,7 +115,7 @@ export default function InventoryTracking() {
         <>
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <p className="text-sm font-bold text-slate-500">
-              إجمالي المشتريات: <span className="text-slate-900 font-black">{money(totalPurchases)} ج.م</span>
+              إجمالي قيمة المشتريات: <span className="text-slate-900 font-black">{money(totalPurchases)} ج.م</span>
             </p>
             <button onClick={() => setEditingPurchase(null)}
               className="flex items-center gap-1.5 bg-[#c09d53] hover:bg-[#a9863f] text-white font-bold text-sm px-4 py-2.5 rounded-xl">
@@ -115,15 +123,16 @@ export default function InventoryTracking() {
             </button>
           </div>
           <div className="bg-white rounded-2xl border border-slate-200 overflow-x-auto">
-            <table className="w-full text-sm text-right min-w-[640px]">
+            <table className="w-full text-sm text-right min-w-[760px]">
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400 font-bold text-xs">
                   <th className="px-4 py-3">التاريخ</th>
-                  <th className="px-4 py-3">الصنف</th>
+                  <th className="px-4 py-3">الجهاز</th>
+                  <th className="px-4 py-3">القسم</th>
+                  <th className="px-4 py-3">الحالة</th>
+                  <th className="px-4 py-3">السيريال</th>
                   <th className="px-4 py-3">المورد</th>
-                  <th className="px-4 py-3">الكمية</th>
-                  <th className="px-4 py-3">سعر الوحدة</th>
-                  <th className="px-4 py-3">الإجمالي</th>
+                  <th className="px-4 py-3">السعر</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -131,11 +140,21 @@ export default function InventoryTracking() {
                 {purchases.map(p => (
                   <tr key={p.id} className="border-b border-slate-50 last:border-0">
                     <td className="px-4 py-3 font-bold text-slate-600 whitespace-nowrap">{p.date}</td>
-                    <td className="px-4 py-3 font-black text-slate-900">{p.itemName}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {p.image && <img src={p.image} className="w-8 h-8 rounded-lg object-contain border border-slate-100 bg-slate-50" />}
+                        <span className="font-black text-slate-900">{p.arabicName}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 font-bold whitespace-nowrap">{categoryLabel(p.category)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[11px] font-black px-2 py-1 rounded-full ${p.condition === 'new' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                        {conditionLabel(p.condition)}{p.batteryHealth != null ? ` · ${p.batteryHealth}%` : ''}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-400 font-mono text-xs" dir="ltr">{p.serialNumber || '—'}</td>
                     <td className="px-4 py-3 text-slate-500 font-bold">{p.supplierName || '—'}</td>
-                    <td className="px-4 py-3 font-bold text-slate-600">{p.quantity}</td>
-                    <td className="px-4 py-3 font-bold text-slate-600">{money(p.unitCost)} ج.م</td>
-                    <td className="px-4 py-3 font-black text-[#c09d53]">{money(p.quantity * p.unitCost)} ج.م</td>
+                    <td className="px-4 py-3 font-black text-[#c09d53] whitespace-nowrap">{money(p.price)} ج.م</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2 justify-end">
                         <button onClick={() => setEditingPurchase(p)} className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">
@@ -149,7 +168,7 @@ export default function InventoryTracking() {
                   </tr>
                 ))}
                 {purchases.length === 0 && (
-                  <tr><td colSpan={7} className="text-center text-slate-400 font-bold py-10">لا توجد مشتريات مسجلة بعد.</td></tr>
+                  <tr><td colSpan={8} className="text-center text-slate-400 font-bold py-10">لا توجد مشتريات مسجلة بعد.</td></tr>
                 )}
               </tbody>
             </table>
@@ -215,15 +234,16 @@ export default function InventoryTracking() {
             </button>
           </div>
           <div className="bg-white rounded-2xl border border-slate-200 overflow-x-auto">
-            <table className="w-full text-sm text-right min-w-[640px]">
+            <table className="w-full text-sm text-right min-w-[760px]">
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400 font-bold text-xs">
                   <th className="px-4 py-3">التاريخ</th>
-                  <th className="px-4 py-3">الصنف</th>
+                  <th className="px-4 py-3">الجهاز</th>
+                  <th className="px-4 py-3">القسم</th>
+                  <th className="px-4 py-3">الحالة</th>
+                  <th className="px-4 py-3">السيريال</th>
                   <th className="px-4 py-3">العميل</th>
-                  <th className="px-4 py-3">الكمية</th>
-                  <th className="px-4 py-3">سعر الوحدة</th>
-                  <th className="px-4 py-3">الإجمالي</th>
+                  <th className="px-4 py-3">السعر</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -231,13 +251,24 @@ export default function InventoryTracking() {
                 {sales.map(s => (
                   <tr key={s.id} className="border-b border-slate-50 last:border-0">
                     <td className="px-4 py-3 font-bold text-slate-600 whitespace-nowrap">{s.date}</td>
-                    <td className="px-4 py-3 font-black text-slate-900">{s.itemName}</td>
-                    <td className="px-4 py-3 text-slate-500 font-bold">{s.customerName || '—'}</td>
-                    <td className="px-4 py-3 font-bold text-slate-600">{s.quantity}</td>
-                    <td className="px-4 py-3 font-bold text-slate-600">{money(s.unitPrice)} ج.م</td>
-                    <td className="px-4 py-3 font-black text-[#c09d53]">{money(s.quantity * s.unitPrice)} ج.م</td>
+                    <td className="px-4 py-3 font-black text-slate-900">{s.arabicName}</td>
+                    <td className="px-4 py-3 text-slate-500 font-bold whitespace-nowrap">{categoryLabel(s.category)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[11px] font-black px-2 py-1 rounded-full ${s.condition === 'new' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                        {conditionLabel(s.condition)}{s.batteryHealth != null ? ` · ${s.batteryHealth}%` : ''}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-400 font-mono text-xs" dir="ltr">{s.serialNumber || '—'}</td>
+                    <td className="px-4 py-3 text-slate-500 font-bold">
+                      {s.customerName || '—'}
+                      {s.customerPhone && <div className="text-[11px] text-slate-400 font-mono" dir="ltr">{s.customerPhone}</div>}
+                    </td>
+                    <td className="px-4 py-3 font-black text-[#c09d53] whitespace-nowrap">{money(s.price)} ج.م</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2 justify-end">
+                        <button onClick={() => printSaleInvoice(s, categoryLabel(s.category))} className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50" title="طباعة الفاتورة">
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
                         <button onClick={() => setEditingSale(s)} className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -249,7 +280,7 @@ export default function InventoryTracking() {
                   </tr>
                 ))}
                 {sales.length === 0 && (
-                  <tr><td colSpan={7} className="text-center text-slate-400 font-bold py-10">لا توجد مبيعات مسجلة بعد.</td></tr>
+                  <tr><td colSpan={8} className="text-center text-slate-400 font-bold py-10">لا توجد مبيعات مسجلة بعد.</td></tr>
                 )}
               </tbody>
             </table>
@@ -258,13 +289,13 @@ export default function InventoryTracking() {
       )}
 
       {editingPurchase !== undefined && (
-        <PurchaseForm existing={editingPurchase} onClose={() => setEditingPurchase(undefined)} onSaved={() => { setEditingPurchase(undefined); load(); }} />
+        <PurchaseForm categories={categories} existing={editingPurchase} onClose={() => setEditingPurchase(undefined)} onSaved={() => { setEditingPurchase(undefined); load(); }} />
+      )}
+      {editingSale !== undefined && (
+        <SaleForm categories={categories} existing={editingSale} onClose={() => setEditingSale(undefined)} onSaved={() => { setEditingSale(undefined); load(); }} />
       )}
       {editingExpense !== undefined && (
         <ExpenseForm existing={editingExpense} onClose={() => setEditingExpense(undefined)} onSaved={() => { setEditingExpense(undefined); load(); }} />
-      )}
-      {editingSale !== undefined && (
-        <SaleForm existing={editingSale} onClose={() => setEditingSale(undefined)} onSaved={() => { setEditingSale(undefined); load(); }} />
       )}
 
       {pendingDelete && (
@@ -301,105 +332,6 @@ export default function InventoryTracking() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Forms
-// ---------------------------------------------------------------------------
-
-function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prevOverflow; };
-  }, []);
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-start justify-center overflow-y-auto z-50 p-4" dir="rtl">
-      <div className="bg-white rounded-3xl w-full max-w-lg my-8 shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <h2 className="text-xl font-black text-slate-900">{title}</h2>
-          <button onClick={onClose} className="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function PurchaseForm({ existing, onClose, onSaved }: { existing: Purchase | null; onClose: () => void; onSaved: () => void }) {
-  const isEdit = !!existing;
-  const [date, setDate] = useState(existing?.date ?? todayStr());
-  const [itemName, setItemName] = useState(existing?.itemName ?? '');
-  const [supplierName, setSupplierName] = useState(existing?.supplierName ?? '');
-  const [quantity, setQuantity] = useState(existing?.quantity ?? 1);
-  const [unitCost, setUnitCost] = useState(existing?.unitCost ?? 0);
-  const [notes, setNotes] = useState(existing?.notes ?? '');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!date || !itemName.trim() || quantity <= 0 || unitCost < 0) {
-      setError('برجاء ملء التاريخ والصنف والكمية وسعر الوحدة بشكل صحيح.');
-      return;
-    }
-    setSaving(true);
-    const row = purchaseToRow({ date, itemName: itemName.trim(), supplierName, quantity, unitCost, notes });
-    const { error } = isEdit
-      ? await supabase.from('purchases').update(row).eq('id', existing!.id)
-      : await supabase.from('purchases').insert(row);
-    setSaving(false);
-    if (error) { setError(error.message); return; }
-    onSaved();
-  };
-
-  return (
-    <ModalShell title={isEdit ? 'تعديل مشترى' : 'تسجيل مشترى جديد'} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="p-6 space-y-4">
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1">التاريخ</label>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input" required />
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1">الصنف</label>
-          <input value={itemName} onChange={e => setItemName(e.target.value)} className="input" required />
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1">المورد (اختياري)</label>
-          <input value={supplierName} onChange={e => setSupplierName(e.target.value)} className="input" />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1">الكمية</label>
-            <input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value))} className="input" required />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1">سعر الوحدة (ج.م)</label>
-            <input type="number" min={0} step="0.01" value={unitCost} onChange={e => setUnitCost(Number(e.target.value))} className="input" required />
-          </div>
-        </div>
-        <p className="text-xs font-bold text-slate-500">الإجمالي: <span className="text-[#c09d53] font-black">{money(quantity * unitCost)} ج.م</span></p>
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1">ملاحظات (اختياري)</label>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} className="input" rows={2} />
-        </div>
-
-        {error && <p className="text-red-600 text-xs font-bold">{error}</p>}
-
-        <div className="flex gap-3 pt-2">
-          <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50">
-            إلغاء
-          </button>
-          <button type="submit" disabled={saving} className="flex-1 py-3 rounded-xl bg-[#c09d53] hover:bg-[#a9863f] text-white font-black disabled:opacity-60">
-            {saving ? 'جاري الحفظ...' : isEdit ? 'حفظ التعديلات' : 'إضافة'}
-          </button>
-        </div>
-      </form>
-    </ModalShell>
-  );
-}
-
 function ExpenseForm({ existing, onClose, onSaved }: { existing: Expense | null; onClose: () => void; onSaved: () => void }) {
   const isEdit = !!existing;
   const [date, setDate] = useState(existing?.date ?? todayStr());
@@ -408,6 +340,12 @@ function ExpenseForm({ existing, onClose, onSaved }: { existing: Expense | null;
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prevOverflow; };
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -426,109 +364,44 @@ function ExpenseForm({ existing, onClose, onSaved }: { existing: Expense | null;
   };
 
   return (
-    <ModalShell title={isEdit ? 'تعديل مصروف' : 'تسجيل مصروف جديد'} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="p-6 space-y-4">
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1">التاريخ</label>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input" required />
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1">البيان</label>
-          <input value={title} onChange={e => setTitle(e.target.value)} className="input" required placeholder="مثال: إيجار، فاتورة كهرباء، صيانة..." />
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1">المبلغ (ج.م)</label>
-          <input type="number" min={0} step="0.01" value={amount} onChange={e => setAmount(Number(e.target.value))} className="input" required />
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1">ملاحظات (اختياري)</label>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} className="input" rows={2} />
-        </div>
-
-        {error && <p className="text-red-600 text-xs font-bold">{error}</p>}
-
-        <div className="flex gap-3 pt-2">
-          <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50">
-            إلغاء
-          </button>
-          <button type="submit" disabled={saving} className="flex-1 py-3 rounded-xl bg-[#c09d53] hover:bg-[#a9863f] text-white font-black disabled:opacity-60">
-            {saving ? 'جاري الحفظ...' : isEdit ? 'حفظ التعديلات' : 'إضافة'}
+    <div className="fixed inset-0 bg-black/50 flex items-start justify-center overflow-y-auto z-50 p-4" dir="rtl">
+      <div className="bg-white rounded-3xl w-full max-w-lg my-8 shadow-2xl">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 className="text-xl font-black text-slate-900">{isEdit ? 'تعديل مصروف' : 'تسجيل مصروف جديد'}</h2>
+          <button onClick={onClose} className="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center">
+            ✕
           </button>
         </div>
-      </form>
-    </ModalShell>
-  );
-}
-
-function SaleForm({ existing, onClose, onSaved }: { existing: Sale | null; onClose: () => void; onSaved: () => void }) {
-  const isEdit = !!existing;
-  const [date, setDate] = useState(existing?.date ?? todayStr());
-  const [itemName, setItemName] = useState(existing?.itemName ?? '');
-  const [customerName, setCustomerName] = useState(existing?.customerName ?? '');
-  const [quantity, setQuantity] = useState(existing?.quantity ?? 1);
-  const [unitPrice, setUnitPrice] = useState(existing?.unitPrice ?? 0);
-  const [notes, setNotes] = useState(existing?.notes ?? '');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!date || !itemName.trim() || quantity <= 0 || unitPrice < 0) {
-      setError('برجاء ملء التاريخ والصنف والكمية وسعر الوحدة بشكل صحيح.');
-      return;
-    }
-    setSaving(true);
-    const row = saleToRow({ date, itemName: itemName.trim(), customerName, quantity, unitPrice, notes });
-    const { error } = isEdit
-      ? await supabase.from('sales').update(row).eq('id', existing!.id)
-      : await supabase.from('sales').insert(row);
-    setSaving(false);
-    if (error) { setError(error.message); return; }
-    onSaved();
-  };
-
-  return (
-    <ModalShell title={isEdit ? 'تعديل عملية بيع' : 'تسجيل عملية بيع جديدة'} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="p-6 space-y-4">
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1">التاريخ</label>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input" required />
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1">الصنف</label>
-          <input value={itemName} onChange={e => setItemName(e.target.value)} className="input" required />
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1">العميل (اختياري)</label>
-          <input value={customerName} onChange={e => setCustomerName(e.target.value)} className="input" />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1">الكمية</label>
-            <input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value))} className="input" required />
+            <label className="block text-xs font-bold text-slate-600 mb-1">التاريخ</label>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input" required />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1">سعر الوحدة (ج.م)</label>
-            <input type="number" min={0} step="0.01" value={unitPrice} onChange={e => setUnitPrice(Number(e.target.value))} className="input" required />
+            <label className="block text-xs font-bold text-slate-600 mb-1">البيان</label>
+            <input value={title} onChange={e => setTitle(e.target.value)} className="input" required placeholder="مثال: إيجار، فاتورة كهرباء، صيانة..." />
           </div>
-        </div>
-        <p className="text-xs font-bold text-slate-500">الإجمالي: <span className="text-[#c09d53] font-black">{money(quantity * unitPrice)} ج.م</span></p>
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1">ملاحظات (اختياري)</label>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} className="input" rows={2} />
-        </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1">المبلغ (ج.م)</label>
+            <input type="number" min={0} step="0.01" value={amount} onChange={e => setAmount(Number(e.target.value))} className="input" required />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1">ملاحظات (اختياري)</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} className="input" rows={2} />
+          </div>
 
-        {error && <p className="text-red-600 text-xs font-bold">{error}</p>}
+          {error && <p className="text-red-600 text-xs font-bold">{error}</p>}
 
-        <div className="flex gap-3 pt-2">
-          <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50">
-            إلغاء
-          </button>
-          <button type="submit" disabled={saving} className="flex-1 py-3 rounded-xl bg-[#c09d53] hover:bg-[#a9863f] text-white font-black disabled:opacity-60">
-            {saving ? 'جاري الحفظ...' : isEdit ? 'حفظ التعديلات' : 'إضافة'}
-          </button>
-        </div>
-      </form>
-    </ModalShell>
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50">
+              إلغاء
+            </button>
+            <button type="submit" disabled={saving} className="flex-1 py-3 rounded-xl bg-[#c09d53] hover:bg-[#a9863f] text-white font-black disabled:opacity-60">
+              {saving ? 'جاري الحفظ...' : isEdit ? 'حفظ التعديلات' : 'إضافة'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

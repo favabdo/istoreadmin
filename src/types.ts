@@ -48,13 +48,34 @@ export interface Guarantee {
   color: string;
 }
 
+interface DeviceSpecs {
+  screen: string;
+  processor: string;
+  camera: string;
+  battery: string;
+}
+
+interface DeviceColor {
+  name: string;
+  hex: string;
+}
+
 export interface Purchase {
   id: string;
   date: string;
-  itemName: string;
+  productId?: string;
+  name: string;
+  arabicName: string;
+  price: number;
+  category: string;
+  condition: 'new' | 'used';
+  batteryHealth?: number;
+  serialNumber?: string;
+  image?: string;
+  images?: string[];
+  specs: DeviceSpecs;
+  colors: DeviceColor[];
   supplierName?: string;
-  quantity: number;
-  unitCost: number;
   notes?: string;
 }
 
@@ -69,9 +90,17 @@ export interface Expense {
 export interface Sale {
   id: string;
   date: string;
-  itemName: string;
+  productId?: string;
+  name: string;
+  arabicName: string;
+  price: number;
+  category: string;
+  condition: 'new' | 'used';
+  batteryHealth?: number;
+  serialNumber?: string;
+  specs: DeviceSpecs;
+  colors: DeviceColor[];
   customerName?: string;
-  quantity: number;
-  unitPrice: number;
+  customerPhone?: string;
   notes?: string;
 }

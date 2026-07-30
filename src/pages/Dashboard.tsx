@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Pencil, Trash2, LogOut, Package, LayoutGrid, ExternalLink, Menu, X, Warehouse, ClipboardList, UserRound, QrCode, Printer } from 'lucide-react';
+import { Plus, Pencil, Trash2, LogOut, Package, LayoutGrid, ExternalLink, Menu, X, Warehouse, ClipboardList, FileSearch, UserRound, QrCode, Printer } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { mapProductRow, mapCategoryRow } from '../lib/mappers';
 import { Product, Category } from '../types';
@@ -8,6 +8,7 @@ import ProductForm from './ProductForm';
 import CategoryForm from './CategoryForm';
 import Profile from './Profile';
 import InventoryTracking from './InventoryTracking';
+import InvoiceReview from './InvoiceReview';
 import Footer from '../components/Footer';
 import QrCodePreview from '../components/QrCodePreview';
 import { generateQrDataUrl } from '../lib/generateQr';
@@ -30,7 +31,7 @@ export default function Dashboard() {
   // actual الأقسام/المنتجات switcher lives in the page body itself. Future modules
   // (invoices, sales, reports) get added as sibling nav items later.
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [view, setView] = useState<'inventory' | 'tracking' | 'profile'>('inventory');
+  const [view, setView] = useState<'inventory' | 'tracking' | 'invoices' | 'profile'>('inventory');
 
   // Delete requires typing the account password first, for both products and categories.
   const [pendingDelete, setPendingDelete] = useState<{ type: 'product' | 'category'; id: string } | null>(null);
@@ -185,7 +186,17 @@ export default function Dashboard() {
             متابعة المخزون
           </button>
 
-          {/* Future groups (الفواتير، التقارير) get added here as new sibling
+          {/* Group: مراجعة الفواتير - سجل كل فواتير البيع، بحث/فلترة وإعادة طباعة.
+              Lives in its own page component (InvoiceReview). */}
+          <button
+            onClick={() => { setView('invoices'); setSidebarOpen(false); }}
+            className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-black ${view === 'invoices' ? 'bg-[#c09d53]/10 text-[#c09d53]' : 'text-slate-700 hover:bg-slate-50'}`}
+          >
+            <FileSearch className="w-4 h-4" />
+            مراجعة الفواتير
+          </button>
+
+          {/* Future groups (التقارير) get added here as new sibling
               buttons once that part of the system is built. */}
         </nav>
 
@@ -231,7 +242,7 @@ export default function Dashboard() {
           </button>
           <div>
             <h1 className="font-black text-lg text-slate-900">
-              {view === 'profile' ? 'الملف الشخصي' : view === 'tracking' ? 'متابعة المخزون' : (tab === 'products' ? 'المنتجات' : 'الأقسام')}
+              {view === 'profile' ? 'الملف الشخصي' : view === 'tracking' ? 'متابعة المخزون' : view === 'invoices' ? 'مراجعة الفواتير' : (tab === 'products' ? 'المنتجات' : 'الأقسام')}
             </h1>
           </div>
         </div>
@@ -242,6 +253,8 @@ export default function Dashboard() {
           <Profile />
         ) : view === 'tracking' ? (
           <InventoryTracking />
+        ) : view === 'invoices' ? (
+          <InvoiceReview />
         ) : (
         <>
         <div className="flex gap-2 mb-6">
